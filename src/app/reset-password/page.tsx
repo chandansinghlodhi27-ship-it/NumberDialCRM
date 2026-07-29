@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'next'
+import { useState, useEffect } from 'react'
 import { updatePassword } from './actions'
 import { KeyRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'

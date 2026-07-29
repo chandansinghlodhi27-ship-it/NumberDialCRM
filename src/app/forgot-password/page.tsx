@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'next'
+import { useState } from 'react'
 import { resetPassword } from './actions'
 import { PhoneCall } from 'lucide-react'
 import Link from 'next/link'
