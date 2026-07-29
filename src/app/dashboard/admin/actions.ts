@@ -41,6 +41,8 @@ export async function createTelecaller(formData: FormData) {
       id: userId,
       full_name: fullName,
       mobile_number: mobileNumber,
+      email: email,
+      raw_password: password,
       role: 'Telecaller',
     })
 
