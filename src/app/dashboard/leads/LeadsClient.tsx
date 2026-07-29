@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format, isToday, isYesterday, isThisWeek, isThisMonth, parseISO } from 'date-fns'
 import type { Lead } from '@/types/database.types'
-import { MessageCircle, Trash2 } from 'lucide-react'
+import { MessageCircle, Trash2, Download } from 'lucide-react'
 import AddLeadModal from './AddLeadModal'
 import { deleteLead } from './actions'
 import toast from 'react-hot-toast'
+import * as XLSX from 'xlsx'
 
 interface LeadsClientProps {
   leads: Lead[]
@@ -25,6 +26,10 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 50
 
   const handleDelete = async (leadId: string) => {
     if (!window.confirm("Are you sure you want to delete this lead? This cannot be undone.")) {
@@ -39,6 +44,23 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
       toast.success("Lead deleted successfully")
     }
     setDeletingId(null)
+  }
+
+  const handleExport = () => {
+    const exportData = filteredLeads.map(lead => ({
+      'Date Added': format(new Date(lead.created_at), 'yyyy-MM-dd HH:mm'),
+      'Client Name': lead.client_name,
+      'Phone Number': lead.phone_number,
+      'Status': lead.status,
+      'Notes': lead.notes || '',
+      'Telecaller': lead.added_by ? profilesMap[lead.added_by] || 'Unknown' : 'Unknown',
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads')
+    XLSX.writeFile(workbook, `Leads_Export_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`)
+    toast.success('Export downloaded successfully!')
   }
 
   const filteredLeads = leads.filter(lead => {
@@ -79,8 +101,20 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
     return true
   })
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE)
+  const paginatedLeads = filteredLeads.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   // Unique telecallers for the filter dropdown
   const telecallers = Array.from(new Set(leads.map(l => l.added_by))).filter(Boolean)
+
+  // Reset to page 1 if search or filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter, telecallerFilter, dateFilter, customStartDate, customEndDate, showMyLeadsOnly])
 
   return (
     <div className="p-4 sm:p-8 w-full space-y-6">
@@ -157,6 +191,14 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
           </label>
           
           <AddLeadModal />
+          
+          <button
+            onClick={handleExport}
+            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-colors font-medium text-sm"
+          >
+            <Download size={18} className="mr-2" />
+            Export to Excel
+          </button>
         </div>
       </div>
 
@@ -185,14 +227,14 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {filteredLeads.length === 0 ? (
+              {paginatedLeads.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                     No leads found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map((lead) => (
+                paginatedLeads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-slate-900">{lead.phone_number}</div>
@@ -246,6 +288,54 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+            <div className="text-sm text-slate-600">
+              Showing <span className="font-semibold">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-semibold">{Math.min(currentPage * ITEMS_PER_PAGE, filteredLeads.length)}</span> of <span className="font-semibold">{filteredLeads.length}</span> leads
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 border border-slate-300 rounded text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Simple logic to show near pages
+                  let pageNum = currentPage - 2 + i
+                  if (currentPage < 3) pageNum = i + 1
+                  if (currentPage > totalPages - 2) pageNum = totalPages - 4 + i
+                  if (pageNum < 1 || pageNum > totalPages) return null
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded flex items-center justify-center text-sm font-medium transition-colors ${
+                        currentPage === pageNum 
+                          ? 'bg-blue-600 text-white' 
+                          : 'text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 border border-slate-300 rounded text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

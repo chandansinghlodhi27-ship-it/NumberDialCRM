@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import CreateUserForm from './CreateUserForm'
 import DeleteUserButton from './DeleteUserButton'
+import ResetPasswordModal from './ResetPasswordModal'
 import { format } from 'date-fns'
 
 export default async function AdminDashboard() {
@@ -45,6 +46,20 @@ export default async function AdminDashboard() {
     return acc
   }, {}) || {}
 
+  // 4. Fetch all Auth users to backfill emails for old users
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  
+  const { data: authData } = await supabaseAdmin.auth.admin.listUsers()
+  
+  const authEmailMap: Record<string, string> = {}
+  authData?.users?.forEach(u => {
+    if (u.email) authEmailMap[u.id] = u.email
+  })
+
   return (
     <div className="p-4 sm:p-8 w-full space-y-8">
       <div>
@@ -79,7 +94,7 @@ export default async function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {/* @ts-ignore */}
-                        {p.email || 'N/A'}
+                        {p.email || authEmailMap[p.id] || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-700">
                         {/* @ts-ignore */}
@@ -100,7 +115,10 @@ export default async function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         {p.id !== user.id && p.role !== 'Super_Admin' && (
-                          <DeleteUserButton userId={p.id} />
+                          <div className="flex items-center justify-end gap-2">
+                            <ResetPasswordModal userId={p.id} userName={p.full_name} />
+                            <DeleteUserButton userId={p.id} />
+                          </div>
                         )}
                       </td>
                     </tr>

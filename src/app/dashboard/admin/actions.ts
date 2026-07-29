@@ -67,3 +67,28 @@ export async function deleteTelecaller(userId: string) {
   revalidatePath('/dashboard/admin')
   return { success: true }
 }
+
+export async function resetPassword(userId: string, newPassword: string) {
+  // Update password in Auth system
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    userId,
+    { password: newPassword }
+  )
+
+  if (authError) {
+    return { error: authError.message }
+  }
+
+  // Also update the plain text password in profiles table so admin can see it
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ raw_password: newPassword })
+    .eq('id', userId)
+
+  if (profileError) {
+    return { error: profileError.message }
+  }
+
+  revalidatePath('/dashboard/admin')
+  return { success: true }
+}
