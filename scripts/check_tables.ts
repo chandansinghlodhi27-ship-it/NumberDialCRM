@@ -9,10 +9,12 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const supabaseAdmin = createClient(supabaseUrl!, serviceRoleKey!)
 
-async function checkProfiles() {
-  const { data, error } = await supabaseAdmin.from('profiles').select('*').limit(1)
-  console.log("Error:", error?.message)
-  console.log("Data:", data)
+async function checkTables() {
+  const { error: profileError } = await supabaseAdmin.from('profiles').select('*').limit(1)
+  console.log("Profiles Table Error:", profileError?.message || 'EXISTS')
+  
+  const { error: leadsError } = await supabaseAdmin.from('leads').select('*').limit(1)
+  console.log("Leads Table Error:", leadsError?.message || 'EXISTS')
 }
 
-checkProfiles()
+checkTables()
