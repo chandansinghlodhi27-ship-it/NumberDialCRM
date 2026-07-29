@@ -49,7 +49,10 @@ export default function AddLeadModal() {
                   required 
                   name="phone_number" 
                   type="tel" 
-                  placeholder="+1234567890"
+                  pattern="[0-9]{10}"
+                  title="Please enter exactly 10 digits"
+                  maxLength={10}
+                  placeholder="9876543210"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" 
                 />
                 <p className="text-xs text-slate-500 mt-1">Must be unique across the entire system.</p>

@@ -36,7 +36,7 @@ export default function CreateUserForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">Mobile Number</label>
-          <input required name="mobile_number" type="tel" className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+          <input required name="mobile_number" type="tel" pattern="[0-9]{10}" title="Please enter exactly 10 digits" maxLength={10} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g. 9876543210" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">Password</label>
