@@ -46,7 +46,7 @@ export default async function AdminDashboard() {
   }, {}) || {}
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-8 w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
         <p className="mt-2 text-slate-600">Manage telecallers and view performance.</p>
