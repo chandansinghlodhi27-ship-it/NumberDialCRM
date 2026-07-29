@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday, isThisWeek, isThisMonth, parseISO } from 'date-fns'
 import type { Lead } from '@/types/database.types'
 import { MessageCircle, Trash2 } from 'lucide-react'
 import AddLeadModal from './AddLeadModal'
@@ -13,13 +13,17 @@ interface LeadsClientProps {
   profilesMap: Record<string, string>
   currentUserId: string
   userRole: string
+  whatsappMessage: string
 }
 
-export default function LeadsClient({ leads, profilesMap, currentUserId, userRole }: LeadsClientProps) {
+export default function LeadsClient({ leads, profilesMap, currentUserId, userRole, whatsappMessage }: LeadsClientProps) {
   const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [telecallerFilter, setTelecallerFilter] = useState<string>('All')
+  const [dateFilter, setDateFilter] = useState<string>('All')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleDelete = async (leadId: string) => {
@@ -50,7 +54,7 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
     if (telecallerFilter !== 'All' && lead.added_by !== telecallerFilter) {
       return false
     }
-    // 4. Filter by search query (phone or name)
+    // 4. Filter by search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       if (!lead.phone_number.toLowerCase().includes(q) && 
@@ -58,6 +62,20 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
         return false
       }
     }
+    // 5. Filter by Date
+    if (dateFilter !== 'All') {
+      const date = parseISO(lead.created_at)
+      if (dateFilter === 'Today' && !isToday(date)) return false
+      if (dateFilter === 'Yesterday' && !isYesterday(date)) return false
+      if (dateFilter === 'This Week' && !isThisWeek(date)) return false
+      if (dateFilter === 'This Month' && !isThisMonth(date)) return false
+      
+      if (dateFilter === 'Custom') {
+        if (customStartDate && new Date(date).getTime() < new Date(customStartDate).setHours(0,0,0,0)) return false
+        if (customEndDate && new Date(date).getTime() > new Date(customEndDate).setHours(23,59,59,999)) return false
+      }
+    }
+
     return true
   })
 
@@ -98,6 +116,28 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
               <option key={id} value={id as string}>{profilesMap[id as string] || 'Unknown'}</option>
             ))}
           </select>
+          
+          {/* Date Filter */}
+          <select 
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-slate-700 bg-white shadow-sm cursor-pointer"
+          >
+            <option value="All">All Time</option>
+            <option value="Today">Today</option>
+            <option value="Yesterday">Yesterday</option>
+            <option value="This Week">This Week</option>
+            <option value="This Month">This Month</option>
+            <option value="Custom">Custom Date</option>
+          </select>
+
+          {dateFilter === 'Custom' && (
+            <div className="flex items-center gap-2">
+              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-700 bg-white" />
+              <span className="text-slate-500">to</span>
+              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-700 bg-white" />
+            </div>
+          )}
 
           {/* Toggle Switch */}
           <label className="flex items-center cursor-pointer bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
@@ -180,7 +220,7 @@ export default function LeadsClient({ leads, profilesMap, currentUserId, userRol
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center gap-2">
                       <a 
-                        href={`https://wa.me/${lead.phone_number.replace(/\D/g, '')}`} 
+                        href={`https://wa.me/${lead.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full transition-colors"

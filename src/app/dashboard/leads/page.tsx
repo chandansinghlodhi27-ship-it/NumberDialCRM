@@ -36,12 +36,22 @@ export default async function LeadsPage() {
     profilesMap[p.id] = p.full_name
   })
 
+  // 5. Fetch global settings
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('whatsapp_message')
+    .eq('id', 1)
+    .single()
+
+  const whatsappMessage = settings?.whatsapp_message || 'Hello, I am calling from NumberDial CRM.'
+
   return (
     <LeadsClient 
       leads={(leads || []) as Lead[]} 
       profilesMap={profilesMap}
       currentUserId={user.id}
       userRole={userRole}
+      whatsappMessage={whatsappMessage}
     />
   )
 }

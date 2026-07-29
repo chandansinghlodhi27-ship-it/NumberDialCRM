@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
-import { Phone, Users, LogOut, PhoneCall } from 'lucide-react'
+import { Phone, Users, LogOut, PhoneCall, Settings } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import type { Profile } from '@/types/database.types'
 
@@ -48,13 +48,22 @@ export default async function DashboardLayout({
           </Link>
           
           {userProfile?.role === 'Super_Admin' && (
-            <Link 
-              href="/dashboard/admin" 
-              className="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
-            >
-              <Users className="mr-3 h-5 w-5" />
-              User Management
-            </Link>
+            <>
+              <Link 
+                href="/dashboard/admin" 
+                className="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
+              >
+                <Users className="mr-3 h-5 w-5" />
+                User Management
+              </Link>
+              <Link 
+                href="/dashboard/settings" 
+                className="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
+              >
+                <Settings className="mr-3 h-5 w-5" />
+                System Settings
+              </Link>
+            </>
           )}
         </nav>
 
