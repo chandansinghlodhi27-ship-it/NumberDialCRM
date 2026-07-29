@@ -2,23 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 import path from 'path'
 
-// Load .env.local
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error('Missing Supabase environment variables')
-  process.exit(1)
-}
-
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+const supabaseAdmin = createClient(supabaseUrl!, serviceRoleKey!)
 
 const admins = [
   { email: 'chandansinghlodhi27@gmail.com', name: 'Chandan Singh' },
@@ -26,48 +15,33 @@ const admins = [
 ]
 
 async function seedAdmins() {
+  const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+  
+  if (listError) {
+    console.error("Error listing users:", listError.message)
+    return
+  }
+
   for (const admin of admins) {
-    console.log(`Creating user: ${admin.email}...`)
-    
-    // 1. Create User in Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: admin.email,
-      password: 'Admin@1234', // Temporary password
-      email_confirm: true,
-    })
-
-    if (authError) {
-      if (authError.message.includes('already registered')) {
-        console.log(`User ${admin.email} already exists.`)
-        // Try to update role to Super_Admin if they already exist
-        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-        const user = existingUsers.users.find(u => u.email === admin.email)
-        
-        if (user) {
-           await supabaseAdmin.from('profiles').update({ role: 'Super_Admin' }).eq('id', user.id)
-           console.log(`Updated ${admin.email} to Super_Admin.`)
-        }
-        continue
+    const user = users.find(u => u.email === admin.email)
+    if (user) {
+      console.log(`Found existing user ${admin.email} with ID ${user.id}`)
+      
+      // Upsert into profiles
+      const { error: upsertError } = await supabaseAdmin.from('profiles').upsert({
+        id: user.id,
+        full_name: admin.name,
+        mobile_number: '',
+        role: 'Super_Admin'
+      })
+      
+      if (upsertError) {
+        console.error(`Failed to upsert profile for ${admin.email}:`, upsertError.message)
       } else {
-        console.error(`Error creating user ${admin.email}:`, authError.message)
-        continue
+        console.log(`Successfully set ${admin.email} as Super_Admin!`)
       }
-    }
-
-    const userId = authData.user.id
-
-    // 2. Insert into Profiles
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
-      id: userId,
-      full_name: admin.name,
-      mobile_number: '',
-      role: 'Super_Admin',
-    })
-
-    if (profileError) {
-      console.error(`Error creating profile for ${admin.email}:`, profileError.message)
     } else {
-      console.log(`Successfully created Super Admin: ${admin.email}`)
+      console.log(`User ${admin.email} not found in Auth.`)
     }
   }
 }

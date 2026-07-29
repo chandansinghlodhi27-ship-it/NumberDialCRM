@@ -3,25 +3,54 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import type { Lead } from '@/types/database.types'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Trash2 } from 'lucide-react'
 import AddLeadModal from './AddLeadModal'
+import { deleteLead } from './actions'
+import toast from 'react-hot-toast'
 
 interface LeadsClientProps {
   leads: Lead[]
   profilesMap: Record<string, string>
   currentUserId: string
+  userRole: string
 }
 
-export default function LeadsClient({ leads, profilesMap, currentUserId }: LeadsClientProps) {
+export default function LeadsClient({ leads, profilesMap, currentUserId, userRole }: LeadsClientProps) {
   const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [telecallerFilter, setTelecallerFilter] = useState<string>('All')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDelete = async (leadId: string) => {
+    if (!window.confirm("Are you sure you want to delete this lead? This cannot be undone.")) {
+      return
+    }
+
+    setDeletingId(leadId)
+    const result = await deleteLead(leadId)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Lead deleted successfully")
+    }
+    setDeletingId(null)
+  }
 
   const filteredLeads = leads.filter(lead => {
     // 1. Filter by "My Leads"
     if (showMyLeadsOnly && lead.added_by !== currentUserId) {
       return false
     }
-    // 2. Filter by search query (phone or name)
+    // 2. Filter by Status
+    if (statusFilter !== 'All' && lead.status !== statusFilter) {
+      return false
+    }
+    // 3. Filter by Telecaller
+    if (telecallerFilter !== 'All' && lead.added_by !== telecallerFilter) {
+      return false
+    }
+    // 4. Filter by search query (phone or name)
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       if (!lead.phone_number.toLowerCase().includes(q) && 
@@ -32,15 +61,44 @@ export default function LeadsClient({ leads, profilesMap, currentUserId }: Leads
     return true
   })
 
+  // Unique telecallers for the filter dropdown
+  const telecallers = Array.from(new Set(leads.map(l => l.added_by))).filter(Boolean)
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-4 sm:p-8 w-full space-y-6">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Leads Pool</h1>
           <p className="mt-1 text-slate-600">View, search, and manage customer leads.</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Status Filter */}
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-slate-700 bg-white shadow-sm cursor-pointer"
+          >
+            <option value="All">All Statuses</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Interested">Interested</option>
+            <option value="Not Interested">Not Interested</option>
+            <option value="Converted">Converted</option>
+          </select>
+
+          {/* Telecaller Filter */}
+          <select 
+            value={telecallerFilter}
+            onChange={(e) => setTelecallerFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-slate-700 bg-white shadow-sm cursor-pointer"
+          >
+            <option value="All">All Telecallers</option>
+            {telecallers.map(id => (
+              <option key={id} value={id as string}>{profilesMap[id as string] || 'Unknown'}</option>
+            ))}
+          </select>
+
           {/* Toggle Switch */}
           <label className="flex items-center cursor-pointer bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
             <div className="relative">
@@ -120,7 +178,7 @@ export default function LeadsClient({ leads, profilesMap, currentUserId }: Leads
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                       {format(new Date(lead.created_at), 'MMM d, yyyy HH:mm')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center gap-2">
                       <a 
                         href={`https://wa.me/${lead.phone_number.replace(/\D/g, '')}`} 
                         target="_blank" 
@@ -130,6 +188,17 @@ export default function LeadsClient({ leads, profilesMap, currentUserId }: Leads
                       >
                         <MessageCircle size={20} />
                       </a>
+                      
+                      {userRole === 'Super_Admin' && (
+                        <button
+                          onClick={() => handleDelete(lead.id)}
+                          disabled={deletingId === lead.id}
+                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
+                          title="Delete Lead"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -38,6 +38,26 @@ CREATE POLICY "Admins have full access to profiles" ON profiles FOR ALL USING (
 CREATE POLICY "Everyone can read leads" ON leads FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert leads" ON leads FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Authenticated users can update leads" ON leads FOR UPDATE USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Admins can delete leads" ON leads FOR DELETE USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'Super_Admin')
-);
+CREATE POLICY "Super Admins can update any lead"
+  ON leads FOR UPDATE
+  TO authenticated
+  USING ( 
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.role = 'Super_Admin'
+    )
+  );
+
+CREATE POLICY "Super Admins can delete leads"
+  ON leads FOR DELETE
+  TO authenticated
+  USING ( 
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.role = 'Super_Admin'
+    )
+  );
+
+-- Create a view for easy analytics

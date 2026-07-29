@@ -40,3 +40,32 @@ export async function addLead(formData: FormData) {
   revalidatePath('/dashboard/leads')
   return { success: true }
 }
+
+export async function deleteLead(leadId: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // 1. Verify user is a Super_Admin
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'Super_Admin') {
+    return { error: 'Unauthorized: Only Super Admins can delete leads.' }
+  }
+
+  // 2. Delete the lead
+  const { error } = await supabase
+    .from('leads')
+    .delete()
+    .eq('id', leadId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/leads')
+  return { success: true }
+}
